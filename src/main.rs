@@ -84,8 +84,6 @@ pub fn secant<F: Fn(f64) -> f64>(f: &F, mut a: f64, mut b: f64, n_max: usize, ep
 
         a -= d;
         f_a = f(a);
-
-        // dbg!(a, b, f_a, f_b);
     }
 
     a
@@ -100,11 +98,9 @@ pub fn steepest_descent<const D: usize>(
     let mut rel_err = 1.0;
 
     while rel_err > TOL {
-        // let f_x = f.eval(x);
         let df_x = df(x);
 
         let alpha = get_alpha_minimizer(-df_x, x, df);
-        // dbg!(alpha);
 
         rel_err = (alpha * df_x).norm() / x.norm().max(1e-8);
         x -= alpha * df_x;
@@ -143,10 +139,7 @@ pub fn conjugate_gradient<const D: usize>(
     }
     let mut d = -g;
     loop {
-        // let d_phi = |a: f64| (d.transpose() * df(x + a * d))[0];
-        // dbg!(x, d);
         let alpha = get_alpha_minimizer(d, x, df);
-        // println!("x: {x:?}, d: {d:?}, alpha: {alpha}");
         if alpha < 1e-3 {
             return x;
         }
@@ -162,7 +155,6 @@ pub fn conjugate_gradient<const D: usize>(
 
         d = -g_next + beta * d;
 
-        // dbg!(x);
     }
 }
 
@@ -190,7 +182,6 @@ fn newton_method<const D: usize>(
         // x⁽ᵏ⁺¹⁾ = x⁽ᵏ⁾ - F(x)⁻¹gᵏ
         x -= hig;
     }
-    // dbg!(i);
 
     x
 }
@@ -205,18 +196,13 @@ fn bfgs<const D: usize>(
     let mut g = df(x);
     let mut i = 0;
     loop {
-        // dbg!(g);
         if g.norm() < 1e-6 {
-            // dbg!(i);
-            // println!("{h}");
             return x;
         }
         i += 1;
         let d = -h * g;
         let alpha = get_alpha_minimizer(d, x, df);
         if alpha < 1e-6 {
-            // dbg!(i);
-            // println!("{h}");
             return x;
         }
 
@@ -234,87 +220,25 @@ fn bfgs<const D: usize>(
 
         x = x_1;
         g = g_1;
-
-        // println!("a: {alpha}");
     }
 }
 
 // #[test]
 fn main() {
-    // let min = steepest_descent(
-    //     &quadratic_gradient(matrix![1.0], matrix![-2.0]),
-    //     ArrayVector::zeros(),
-    // );
-    // dbg!(min);
-
-    // let min = conjugate_gradient(
-    //     &quadratic_gradient(matrix![1.0], matrix![-2.0]),
-    //     ArrayVector::zeros(),
-    // );
-    // dbg!(min);
-
-    // // let rosenbrock = Rosenbrock { a: 1.0, b: 100.0 };
-    // dbg!(steepest_descent(
-    //     &rosenbrock_gradient(1.0, 100.0),
-    //     matrix![0.4; 0.0]
-    // ));
-
-    // dbg!(conjugate_gradient(
-    //     &rosenbrock_gradient(1.0, 1.0),
-    //     matrix![0.4; 0.0]
-    // ));
-
-    // dbg!(newton_method(
-    //     &rosenbrock_gradient(1.0, 1.0),
-    //     &rosenbrock_hessian(1.0, 1.0),
-    //     matrix![0.4; 0.0]
-    // ));
-    // dbg!(bfgs(
-    //     &rosenbrock_gradient(1.0, 1.0),
-    //     matrix![0.4; 0.0],
-    //     ArrayMatrix::identity()
-    // ));
-
-    // let q = matrix![4.0,2.0;2.0,2.0];
-    // let b = matrix![-1.0;1.0];
-    // dbg!(steepest_descent(
-    //     &quadratic_gradient(q, b),
-    //     matrix![0.0;0.0]
-    // ));
-    // dbg!(conjugate_gradient(
-    //     &quadratic_gradient(q, b),
-    //     matrix![0.0;0.0],
-    // ));
-    // dbg!(newton_method(
-    //     &quadratic_gradient(q, b),
-    //     &quadratic_hessian(q),
-    //     matrix![0.0;0.0],
-    // ));
-    // println!("{}", q.try_inverse().unwrap());
-    // dbg!(bfgs(
-    //     &quadratic_gradient(q, b),
-    //     matrix![0.0;0.0],
-    //     ArrayMatrix::identity()
-    // ));
-    // // dbg!(quadratic(q, b, c))
 
     {
         println!("----- QUADRATIC -----");
 
-        let q = random_positive_semidefinite_matrix::<4>();
+        let q = random_positive_semidefinite_matrix::<8>();
         println!("q: {q}");
         dbg!(q.eigenvalues());
-        let b: ArrayVector<4> = rand::random();
+        let b: ArrayVector<8> = rand::random();
         println!("b: {b}");
         let f = quadratic(q, b, 0.0);
         let df = quadratic_gradient(q, b);
         let d2f = quadratic_hessian(q);
         println!("{q}");
 
-        // dbg!(steepest_descent(
-        //     &quadratic_gradient(q, b),
-        //     ArrayVector::zeros(),
-        // ));
         let min_x = q.lu().solve(&b).unwrap();
         println!("min: {min_x}");
         println!("{}", f(min_x));
