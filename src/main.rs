@@ -342,32 +342,32 @@ fn test_fns<const D: usize>(
         let x = steepest_descent(df, x_0);
         let elapsed = Instant::now() - now;
         print!("steepest_descent: {x:.3}");
-        println!("{:.3}\n", f(x));
-        println!("{:.2?}", elapsed)
+        println!("{:.3}", f(x));
+        println!("{:.2?}\n", elapsed)
     }
     {
         let now = Instant::now();
         let x = conjugate_gradient(df, x_0);
         let elapsed = Instant::now() - now;
         print!("conjugate_gradient: {x:.3}");
-        println!("{:.3}\n", f(x));
-        println!("{:.2?}", elapsed)
+        println!("{:.3}", f(x));
+        println!("{:.2?}\n", elapsed)
     }
     {
         let now = Instant::now();
         let x = newton_method(df, d2f, x_0);
         let elapsed = Instant::now() - now;
         print!("newton_method: {x:.3}");
-        println!("{:.3}\n", f(x));
-        println!("{:.2?}", elapsed)
+        println!("{:.3}", f(x));
+        println!("{:.2?}\n", elapsed)
     }
     {
         let now = Instant::now();
         let x = bfgs(df, x_0, h_0);
         let elapsed = Instant::now() - now;
         print!("bfgs: {x:.3}");
-        println!("{:.3}\n", f(x));
-        println!("{:.2?}", elapsed)
+        println!("{:.3}", f(x));
+        println!("{:.2?}\n", elapsed)
     }
 }
 
