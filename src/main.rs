@@ -225,17 +225,17 @@ fn main() {
         println!("----- QUADRATIC -----");
 
         let q = random_positive_semidefinite_matrix::<8>();
-        println!("q: {q}");
+        println!("q: {q:.3}");
         dbg!(q.eigenvalues());
         let b: ArrayVector<8> = rand::random();
-        println!("b: {b}");
+        println!("b: {b:.3}");
         let f = quadratic(q, b, 0.0);
         let df = quadratic_gradient(q, b);
         let d2f = quadratic_hessian(q);
-        println!("{q}");
+        // println!("{q}");
 
         let min_x = q.lu().solve(&b).unwrap();
-        println!("min: {min_x}");
+        println!("min: {min_x:.3}");
         println!("{}", f(min_x));
         test_fns(&f, &df, &d2f, ArrayVector::zeros(), ArrayMatrix::identity());
     }
