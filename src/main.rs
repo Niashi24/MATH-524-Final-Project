@@ -155,7 +155,7 @@ pub fn conjugate_gradient<const D: usize>(
 
 fn newton_method<const D: usize>(
     df: &impl Fn(ArrayVector<D>) -> ArrayVector<D>,
-    hessian: &impl Fn(ArrayVector<D>) -> ArrayMatrix<D, D>,
+    d2f: &impl Fn(ArrayVector<D>) -> ArrayMatrix<D, D>,
     x_0: ArrayVector<D>,
 ) -> ArrayVector<D> {
     let mut x = x_0;
@@ -165,7 +165,7 @@ fn newton_method<const D: usize>(
     loop {
         i += 1;
         let g = df(x);
-        let h = hessian(x);
+        let h = d2f(x);
 
         // todo: try to use LU decomposition to solve instead of taking inverse
         // F(x)⁻¹gᵏ
