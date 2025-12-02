@@ -2,19 +2,14 @@ use std::time::Instant;
 
 use nalgebra::{ArrayStorage, Const, Matrix, Vector, matrix};
 
+// type alias's for a RxC matrix using stack storage
 pub type ArrayMatrix<const R: usize, const C: usize> =
     Matrix<f64, Const<R>, Const<C>, ArrayStorage<f64, R, C>>;
+// type alias's for a vector of dimension D using stack storage
 pub type ArrayVector<const D: usize> = Vector<f64, Const<D>, ArrayStorage<f64, D, 1>>;
 
 /// A function of the form f(x)=½xᵀQx-xᵀb+c
 /// It has a derivative of f'(x)=Qx-b
-#[derive(Clone, Copy)]
-pub struct Quadratic<const D: usize> {
-    pub q: ArrayMatrix<D, D>,
-    pub b: ArrayVector<D>,
-    pub c: f64,
-}
-
 pub fn quadratic<const D: usize>(
     q: ArrayMatrix<D, D>,
     b: ArrayVector<D>,
