@@ -1,4 +1,5 @@
-use std::time::Instant;
+use core::fmt;
+use std::{fs::File, io::{self, BufWriter}, time::Instant};
 
 use nalgebra::{ArrayStorage, Const, Matrix, Vector, matrix};
 
@@ -87,6 +88,7 @@ pub fn secant<F: Fn(f64) -> f64>(f: &F, mut a: f64, mut b: f64, n_max: usize, ep
 pub fn steepest_descent<const D: usize>(
     df: &impl Fn(ArrayVector<D>) -> ArrayVector<D>,
     x_0: ArrayVector<D>,
+    record: &mut Vec<Iteration<D>>,
 ) -> ArrayVector<D> {
     const TOL: f64 = 1e-3;
     let mut x = x_0;
@@ -99,6 +101,8 @@ pub fn steepest_descent<const D: usize>(
 
         rel_err = (alpha * df_x).norm() / x.norm().max(1e-8);
         x -= alpha * df_x;
+
+        record.push(Iteration { x, step_length: (alpha * df_x).norm() });
     }
 
     x
@@ -126,6 +130,7 @@ fn get_alpha_minimizer<const D: usize>(
 pub fn conjugate_gradient<const D: usize>(
     df: &impl Fn(ArrayVector<D>) -> ArrayVector<D>,
     x_0: ArrayVector<D>,
+    record: &mut Vec<Iteration<D>>,
 ) -> ArrayVector<D> {
     let mut x = x_0;
     let mut g = df(x);
@@ -140,6 +145,8 @@ pub fn conjugate_gradient<const D: usize>(
         }
 
         x += alpha * d;
+        record.push(Iteration { x, step_length: (alpha * d).norm() });
+
         let g_next = df(x);
         if g_next.norm() < 1e-6 {
             return x;
@@ -153,10 +160,16 @@ pub fn conjugate_gradient<const D: usize>(
     }
 }
 
+pub struct Iteration<const D: usize> {
+    x: ArrayVector<D>,
+    step_length: f64,
+}
+
 fn newton_method<const D: usize>(
     df: &impl Fn(ArrayVector<D>) -> ArrayVector<D>,
     d2f: &impl Fn(ArrayVector<D>) -> ArrayMatrix<D, D>,
     x_0: ArrayVector<D>,
+    record: &mut Vec<Iteration<D>>,
 ) -> ArrayVector<D> {
     let mut x = x_0;
 
@@ -176,6 +189,7 @@ fn newton_method<const D: usize>(
 
         // x⁽ᵏ⁺¹⁾ = x⁽ᵏ⁾ - F(x)⁻¹gᵏ
         x -= hig;
+        record.push(Iteration { x, step_length: hig.norm() });
     }
 
     x
@@ -185,6 +199,7 @@ fn bfgs<const D: usize>(
     df: &impl Fn(ArrayVector<D>) -> ArrayVector<D>,
     x_0: ArrayVector<D>,
     h_0: ArrayMatrix<D, D>,
+    record: &mut Vec<Iteration<D>>,
 ) -> ArrayVector<D> {
     let mut x = x_0;
     let mut h = h_0;
@@ -213,6 +228,8 @@ fn bfgs<const D: usize>(
             - (h * dg * dx.transpose() + (h * dg * dx.transpose()).transpose())
                 / (dg.transpose() * dx)[0];
 
+        record.push(Iteration { x: x_1, step_length: (alpha * d).norm()});
+
         x = x_1;
         g = g_1;
     }
@@ -223,11 +240,11 @@ fn main() {
 
     {
         println!("----- QUADRATIC -----");
-
-        let q = random_positive_semidefinite_matrix::<8>();
+        const DIMENSION: usize = 8;
+        let q = random_positive_semidefinite_matrix::<DIMENSION>();
         println!("q: {q:.3}");
         dbg!(q.eigenvalues());
-        let b: ArrayVector<8> = rand::random();
+        let b: ArrayVector<DIMENSION> = rand::random();
         println!("b: {b:.3}");
         let f = quadratic(q, b, 0.0);
         let df = quadratic_gradient(q, b);
@@ -237,7 +254,7 @@ fn main() {
         let min_x = q.lu().solve(&b).unwrap();
         println!("min: {min_x:.3}");
         println!("{}", f(min_x));
-        test_fns(&f, &df, &d2f, ArrayVector::zeros(), ArrayMatrix::identity());
+        test_fns(&f, &df, &d2f, ArrayVector::zeros(), ArrayMatrix::identity(), "quadratic");
     }
     
     {
@@ -245,8 +262,22 @@ fn main() {
         let df = rosenbrock_gradient(1.0, 100.0);
         let d2f = rosenbrock_hessian(1.0, 100.0);
         println!("----- ROSENBROCK -----");
-        test_fns(&f, &df, &d2f, ArrayVector::zeros(), ArrayMatrix::identity());
+        test_fns(&f, &df, &d2f, ArrayVector::zeros(), ArrayMatrix::identity(), "rosenbrock");
     }
+}
+
+use std::io::Write;
+
+fn iterations_to_csv<const D: usize>(iterations: &[Iteration<D>], f: &impl Fn(ArrayVector<D>) -> f64, out: &mut impl Write) -> io::Result<()> {
+    writeln!(out, "i,f")?;
+    writeln!(out, "0,{}", f(ArrayVector::<D>::zeros()))?;
+    for (i, iter) in iterations.into_iter().enumerate() {
+        let val = f(iter.x);
+
+        writeln!(out, "{},{val}", i + 1)?;
+    }
+
+    Ok(())
 }
 
 fn test_fns<const D: usize>(
@@ -255,38 +286,108 @@ fn test_fns<const D: usize>(
     d2f: &impl Fn(ArrayVector<D>) -> ArrayMatrix<D, D>,
     x_0: ArrayVector<D>,
     h_0: ArrayMatrix<D, D>,
+    name: &str,
 ) {
     {
-        let now = Instant::now();
-        let x = steepest_descent(df, x_0);
-        let elapsed = Instant::now() - now;
+        // let now = Instant::now();
+        let mut iterations = Vec::new();
+        let x = steepest_descent(df, x_0, &mut iterations);
+        // let elapsed = Instant::now() - now;
         print!("steepest_descent: {x:.3}");
         println!("{:.3}", f(x));
-        println!("{:.2?}\n", elapsed)
+        println!("{} iterations", iterations.len());
+        {
+            let mut file = File::create(&format!("{name}_steepest_descent.csv")).unwrap();
+            let mut writer = BufWriter::new(file);
+            iterations_to_csv(&iterations, f, &mut writer).unwrap();
+        }
+
+        let now = Instant::now();
+        let n = 100;
+        iterations.clear();
+        for _ in 0..n {
+            let _ = steepest_descent(df, x_0, &mut iterations);
+            iterations.clear();
+        }
+
+        let elapsed = Instant::now() - now;
+        println!("Average runtime over {n} runs: {:.2?}", elapsed / n);
+        println!();
     }
     {
         let now = Instant::now();
-        let x = conjugate_gradient(df, x_0);
+        let mut iterations = Vec::new();
+        let x = conjugate_gradient(df, x_0, &mut iterations);
         let elapsed = Instant::now() - now;
         print!("conjugate_gradient: {x:.3}");
         println!("{:.3}", f(x));
-        println!("{:.2?}\n", elapsed)
+        println!("{} iterations, {:.2?}", iterations.len(), elapsed);
+        {
+            let mut file = File::create(&format!("{name}_conjugate_gradient.csv")).unwrap();
+            let mut writer = BufWriter::new(file);
+            iterations_to_csv(&iterations, f, &mut writer).unwrap();
+        }
+
+        let now = Instant::now();
+        let n = 100;
+        iterations.clear();
+        for _ in 0..n {
+            let _ = conjugate_gradient(df, x_0, &mut iterations);
+            iterations.clear();
+        }
+        let elapsed = Instant::now() - now;
+        println!("Average runtime over {n} runs: {:.2?}", elapsed / n);
+        println!();
     }
     {
         let now = Instant::now();
-        let x = newton_method(df, d2f, x_0);
+        let mut iterations = Vec::new();
+        let x = newton_method(df, d2f, x_0, &mut iterations);
         let elapsed = Instant::now() - now;
         print!("newton_method: {x:.3}");
         println!("{:.3}", f(x));
-        println!("{:.2?}\n", elapsed)
+        println!("{} iterations, {:.2?}", iterations.len(), elapsed);
+        {
+            let mut file = File::create(&format!("{name}_newton_method.csv")).unwrap();
+            let mut writer = BufWriter::new(file);
+            iterations_to_csv(&iterations, f, &mut writer).unwrap();
+        }
+
+        let now = Instant::now();
+        let n = 100;
+        iterations.clear();
+        for _ in 0..n {
+            let _ = newton_method(df, d2f, x_0, &mut iterations);
+            iterations.clear();
+        }
+        let elapsed = Instant::now() - now;
+        println!("Average runtime over {n} runs: {:.2?}", elapsed / n);
+        println!();
     }
     {
         let now = Instant::now();
-        let x = bfgs(df, x_0, h_0);
+        let mut iterations = Vec::new();
+        let x = bfgs(df, x_0, h_0, &mut iterations);
         let elapsed = Instant::now() - now;
         print!("bfgs: {x:.3}");
         println!("{:.3}", f(x));
-        println!("{:.2?}\n", elapsed)
+        println!("{} iterations, {:.2?}", iterations.len(), elapsed);
+        {
+            let mut file = File::create(&format!("{name}_bfgs.csv")).unwrap();
+            let mut writer = BufWriter::new(file);
+            iterations_to_csv(&iterations, f, &mut writer).unwrap();
+        }
+
+        let now = Instant::now();
+        let n = 100;
+        iterations.clear();
+        for _ in 0..n {
+            let _ = bfgs(df, x_0, h_0, &mut iterations);
+            iterations.clear();
+        }
+        let elapsed = Instant::now() - now;
+        println!("Average runtime over {n} runs: {:.2?}", elapsed / n);
+        println!();
     }
 }
 
