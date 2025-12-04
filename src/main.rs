@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{fs::File, io::{self, BufWriter}, time::Instant};
 
 use nalgebra::{ArrayStorage, Const, Matrix, Vector, matrix};
@@ -162,6 +161,7 @@ pub fn conjugate_gradient<const D: usize>(
 
 pub struct Iteration<const D: usize> {
     x: ArrayVector<D>,
+    #[allow(dead_code)]
     step_length: f64,
 }
 
@@ -173,10 +173,7 @@ fn newton_method<const D: usize>(
 ) -> ArrayVector<D> {
     let mut x = x_0;
 
-    let mut i = 0;
-
     loop {
-        i += 1;
         let g = df(x);
         let h = d2f(x);
 
@@ -204,12 +201,10 @@ fn bfgs<const D: usize>(
     let mut x = x_0;
     let mut h = h_0;
     let mut g = df(x);
-    let mut i = 0;
     loop {
         if g.norm() < 1e-6 {
             return x;
         }
-        i += 1;
         let d = -h * g;
         let alpha = get_alpha_minimizer(d, x, df);
         if alpha < 1e-6 {
@@ -271,7 +266,7 @@ use std::io::Write;
 fn iterations_to_csv<const D: usize>(iterations: &[Iteration<D>], f: &impl Fn(ArrayVector<D>) -> f64, out: &mut impl Write) -> io::Result<()> {
     writeln!(out, "i,f")?;
     writeln!(out, "0,{}", f(ArrayVector::<D>::zeros()))?;
-    for (i, iter) in iterations.into_iter().enumerate() {
+    for (i, iter) in iterations.iter().enumerate() {
         let val = f(iter.x);
 
         writeln!(out, "{},{val}", i + 1)?;
@@ -297,7 +292,7 @@ fn test_fns<const D: usize>(
         println!("{:.3}", f(x));
         println!("{} iterations", iterations.len());
         {
-            let mut file = File::create(&format!("{name}_steepest_descent.csv")).unwrap();
+            let file = File::create(format!("{name}_steepest_descent.csv")).unwrap();
             let mut writer = BufWriter::new(file);
             iterations_to_csv(&iterations, f, &mut writer).unwrap();
         }
@@ -323,7 +318,7 @@ fn test_fns<const D: usize>(
         println!("{:.3}", f(x));
         println!("{} iterations, {:.2?}", iterations.len(), elapsed);
         {
-            let mut file = File::create(&format!("{name}_conjugate_gradient.csv")).unwrap();
+            let file = File::create(format!("{name}_conjugate_gradient.csv")).unwrap();
             let mut writer = BufWriter::new(file);
             iterations_to_csv(&iterations, f, &mut writer).unwrap();
         }
@@ -348,7 +343,7 @@ fn test_fns<const D: usize>(
         println!("{:.3}", f(x));
         println!("{} iterations, {:.2?}", iterations.len(), elapsed);
         {
-            let mut file = File::create(&format!("{name}_newton_method.csv")).unwrap();
+            let file = File::create(format!("{name}_newton_method.csv")).unwrap();
             let mut writer = BufWriter::new(file);
             iterations_to_csv(&iterations, f, &mut writer).unwrap();
         }
@@ -373,7 +368,7 @@ fn test_fns<const D: usize>(
         println!("{:.3}", f(x));
         println!("{} iterations, {:.2?}", iterations.len(), elapsed);
         {
-            let mut file = File::create(&format!("{name}_bfgs.csv")).unwrap();
+            let file = File::create(format!("{name}_bfgs.csv")).unwrap();
             let mut writer = BufWriter::new(file);
             iterations_to_csv(&iterations, f, &mut writer).unwrap();
         }
