@@ -1,7 +1,7 @@
-rosenbrock_steepest_descent = readtable("rosenbrock_steepest_descent.csv")
-rosenbrock_conjugate_gradient = readtable("rosenbrock_conjugate_gradient.csv")
-rosenbrock_newton_method = readtable("rosenbrock_newton_method.csv")
-rosenbrock_bfgs = readtable("rosenbrock_bfgs.csv")
+rosenbrock_steepest_descent = readtable("rosenbrock_steepest_descent.csv");
+rosenbrock_conjugate_gradient = readtable("rosenbrock_conjugate_gradient.csv");
+rosenbrock_newton_method = readtable("rosenbrock_newton_method.csv");
+rosenbrock_bfgs = readtable("rosenbrock_bfgs.csv");
 
 figure; hold on;
 
